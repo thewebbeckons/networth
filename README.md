@@ -2,7 +2,8 @@
 
 A modern, privacy-focused net worth tracking application built with Nuxt 4 and Nuxt UI. All data is stored locally in your browser using IndexedDB.
 
-![NetWorth Dashboard](https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png) <!-- Note: Replace with actual screenshot if available -->
+![NetWorth Dashboard](<img width="1240" height="1061" alt="Screenshot 2025-12-27 at 5 48 57 PM" src="https://github.com/user-attachments/assets/b3866711-7f5a-44ba-9d1e-c1cea033ce68" />
+) <!-- Note: Replace with actual screenshot if available -->
 
 ## Features
 
