@@ -2,7 +2,7 @@
 import { h, resolveComponent } from 'vue'
 import { CalendarDate, type DateValue } from '@internationalized/date'
 
-const { accounts, updateBalance } = useNetWorth()
+const { accounts, updateBalance, deleteAccount } = useNetWorth()
 
 // Helper to format currency
 const formatCurrency = (value: number) => {
@@ -40,7 +40,7 @@ const items = computed(() => {
     bank: acc.bank,
     category: acc.category,
     owner: acc.owner,
-    ownerAvatar: acc.ownerAvatar,
+    ownerColor: acc.ownerColor,
     type: acc.type,
     balance: acc.latestBalance
   }))
@@ -67,13 +67,47 @@ const saveBalanceUpdate = async () => {
     isUpdateModalOpen.value = false
   }
 }
+
+// State for editing account
+const isEditModalOpen = ref(false)
+const accountToEdit = ref<any>(null)
+
+const openEditModal = (row: any) => {
+  accountToEdit.value = {
+    id: row.id,
+    name: row.name,
+    bank: row.bank,
+    category: row.category,
+    owner: row.owner,
+    type: row.type,
+    latestBalance: row.balance
+  }
+  isEditModalOpen.value = true
+}
+
+// State for delete confirmation
+const isDeleteModalOpen = ref(false)
+const accountToDelete = ref<any>(null)
+
+const openDeleteModal = (row: any) => {
+  accountToDelete.value = row
+  isDeleteModalOpen.value = true
+}
+
+const confirmDelete = async () => {
+  if (accountToDelete.value) {
+    await deleteAccount(accountToDelete.value.id)
+    isDeleteModalOpen.value = false
+    accountToDelete.value = null
+  }
+}
 </script>
 
 <template>
   <UTable v-model:sorting="sorting" :columns="columns" :data="items">
       <template #owner-cell="{ row }">
         <div class="flex items-center gap-2">
-          <UAvatar :src="row.original.ownerAvatar" :alt="row.original.owner" size="xs" />
+          <OwnerBadge :name="row.original.owner" :color="row.original.ownerColor" size="xs" />
         </div>
       </template>
 
@@ -88,19 +122,36 @@ const saveBalanceUpdate = async () => {
           <UTooltip text="Update Balance">
             <UButton 
               icon="i-lucide-circle-dollar-sign" 
-              
               color="success" 
               variant="ghost" 
               class="cursor-pointer"
               @click="openUpdateModal(row.original)"
             />
           </UTooltip>
+          <UTooltip text="Edit Account">
+            <UButton 
+              icon="i-lucide-pencil" 
+              color="primary" 
+              variant="ghost" 
+              class="cursor-pointer"
+              @click="openEditModal(row.original)"
+            />
+          </UTooltip>
           <UTooltip text="View History">
             <UButton 
               icon="i-lucide-chart-no-axes-combined"  
-              color="primary" 
+              color="neutral" 
               variant="ghost" 
               :to="`/accounts/${row.original.id}`"
+            />
+          </UTooltip>
+          <UTooltip text="Delete Account">
+            <UButton 
+              icon="i-lucide-trash-2" 
+              color="error" 
+              variant="ghost" 
+              class="cursor-pointer"
+              @click="openDeleteModal(row.original)"
             />
           </UTooltip>
         </div>
@@ -135,6 +186,32 @@ const saveBalanceUpdate = async () => {
               <UButton label="Cancel" color="neutral" variant="ghost" @click="isUpdateModalOpen = false" />
               <UButton label="Save" color="primary" @click="saveBalanceUpdate" />
             </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Edit Account Modal -->
+    <UModal v-model:open="isEditModalOpen" title="Edit Account">
+      <template #body>
+        <EditAccountForm 
+          v-if="accountToEdit" 
+          :account="accountToEdit" 
+          @close="isEditModalOpen = false" 
+          @saved="isEditModalOpen = false" 
+        />
+      </template>
+    </UModal>
+
+    <!-- Delete Confirmation Modal -->
+    <UModal v-model:open="isDeleteModalOpen">
+      <template #content>
+        <div class="p-4">
+          <h3 class="text-lg font-bold mb-4">Delete Account</h3>
+          <p class="mb-4">Are you sure you want to delete <strong>{{ accountToDelete?.name }}</strong>? This action cannot be undone and will remove all balance history for this account.</p>
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancel" color="neutral" variant="ghost" @click="isDeleteModalOpen = false" />
+            <UButton label="Delete" color="error" @click="confirmDelete" />
           </div>
         </div>
       </template>

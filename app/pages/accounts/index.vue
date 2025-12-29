@@ -14,7 +14,7 @@ const isAddAccountOpen = ref(false)
       <UButton label="Add Account" @click="isAddAccountOpen = true" icon="i-heroicons-plus" />
     </div>
 
-    <UCard>
+    <UCard variant="soft">
       <AccountList />
     </UCard>
 

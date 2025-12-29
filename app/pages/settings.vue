@@ -8,6 +8,7 @@ definePageMeta({
 const { 
   owners, 
   addOwner, 
+  updateOwner,
   deleteOwner, 
   exportDatabase, 
   importDatabase, 
@@ -17,34 +18,54 @@ const {
 
 const toast = useToast()
 
+// Color options for owners (Nuxt UI semantic colors)
+const colorOptions = ['primary', 'secondary', 'success', 'info', 'warning', 'error', 'neutral'] as const
+type OwnerColor = typeof colorOptions[number]
+
 // Owners Management
 const newOwnerName = ref('')
-const avatarPreview = ref<string | null>(null)
-const isAddingOwner = ref(false)
+const selectedColor = ref<OwnerColor>('primary')
 
-const handleAvatarChange = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      avatarPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }
-}
+// Edit Owner State
+const isEditingOwner = ref(false)
+const editingOwner = ref<{ id: number; name: string; color?: string } | null>(null)
+const editOwnerName = ref('')
+const editSelectedColor = ref<OwnerColor>('primary')
+const isAddingOwner = ref(false)
 
 const onAddOwner = async () => {
   if (!newOwnerName.value) return
   
   try {
-    await addOwner(newOwnerName.value, avatarPreview.value || undefined)
+    await addOwner(newOwnerName.value, selectedColor.value)
     newOwnerName.value = ''
-    avatarPreview.value = null
+    selectedColor.value = 'primary'
     isAddingOwner.value = false
     toast.add({ title: 'Owner added successfully', color: 'success' })
   } catch (error) {
     toast.add({ title: 'Failed to add owner', color: 'error', description: String(error) })
+  }
+}
+
+const onEditOwner = (owner: { id: number; name: string; color?: string }) => {
+  editingOwner.value = owner
+  editOwnerName.value = owner.name
+  editSelectedColor.value = (owner.color as OwnerColor) || 'primary'
+  isEditingOwner.value = true
+}
+
+const onUpdateOwner = async () => {
+  if (!editingOwner.value || !editOwnerName.value) return
+  
+  try {
+    await updateOwner(editingOwner.value.id, editOwnerName.value, editSelectedColor.value)
+    isEditingOwner.value = false
+    editingOwner.value = null
+    editOwnerName.value = ''
+    editSelectedColor.value = 'primary'
+    toast.add({ title: 'Owner updated successfully', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Failed to update owner', color: 'error', description: String(error) })
   }
 }
 
@@ -123,7 +144,7 @@ const onResetApp = async () => {
     <ClientOnly v-else>
       <div class="space-y-8">
         <!-- Owners Section -->
-        <UCard>
+        <UCard variant="soft">
           <template #header>
             <div class="flex items-center justify-between">
               <div>
@@ -140,15 +161,20 @@ const onResetApp = async () => {
 
           <div class="divide-y divide-gray-200 dark:divide-gray-800">
             <div v-for="owner in owners" :key="owner.id" class="flex items-center gap-4 py-4 px-4 first:pt-0 last:pb-0">
-              <UAvatar
-                :src="owner.avatar"
-                :alt="owner.name"
+              <OwnerBadge
+                :name="owner.name"
+                :color="owner.color"
                 size="md"
               />
               <div class="flex-1">
                 <p class="font-medium text-sm">{{ owner.name }}</p>
               </div>
-              <div class="flex items-center">
+              <div class="flex items-center gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  @click="onEditOwner(owner)"
+                />
                 <UButton
                   icon="i-lucide-trash-2"
                   color="error"
@@ -164,7 +190,7 @@ const onResetApp = async () => {
         </UCard>
 
         <!-- Data Management Section -->
-        <UCard>
+        <UCard variant="soft">
           <template #header>
             <h2 class="text-xl font-semibold">Data Management</h2>
             <p class="text-sm text-muted-foreground">Export or import your financial data via JSON files.</p>
@@ -204,24 +230,26 @@ const onResetApp = async () => {
         </UCard>
 
         <!-- Danger Zone Section -->
-        <UCard class="border-red-500/20 bg-red-50/5 dark:bg-red-950/5">
+        <UPageCard variant="soft" highlight highlightColor="error" :ui="{ root: 'bg-error/5 dark:bg-error/5' }">
           <template #header>
             <h2 class="text-xl font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
             <p class="text-sm text-muted-foreground">Irreversible actions that affect your data.</p>
           </template>
 
-          <div>
-            <h3 class="font-medium mb-1">Reset Application</h3>
-            <p class="text-sm text-muted-foreground mb-4">
-              Permanently delete all accounts, history, and settings from this browser. This cannot be undone.
-            </p>
-            <UButton
-              color="error"
-              label="Reset All Data"
-              @click="isResetModalOpen = true"
-            />
-          </div>
-        </UCard>
+          <template #body>
+            <div>
+              <h3 class="font-medium mb-1">Reset Application</h3>
+              <p class="text-sm text-muted-foreground mb-4">
+                Permanently delete all accounts, history, and settings from this browser. This cannot be undone.
+              </p>
+              <UButton
+                color="error"
+                label="Reset All Data"
+                @click="isResetModalOpen = true"
+              />
+            </div>
+          </template>
+        </UPageCard>
       </div>
 
       <!-- Add Owner Modal -->
@@ -232,15 +260,22 @@ const onResetApp = async () => {
               <UInput v-model="newOwnerName" placeholder="Enter owner name" />
             </UFormField>
             
-            <UFormField label="Avatar (Optional)">
+            <UFormField label="Color">
               <div class="flex items-center gap-4">
-                <UAvatar :src="avatarPreview || undefined" size="lg" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                  @change="handleAvatarChange"
-                />
+                <OwnerBadge :name="newOwnerName || 'Preview'" :color="selectedColor" size="lg" />
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="color in colorOptions"
+                    :key="color"
+                    type="button"
+                    class="w-8 h-8 rounded-full transition-all ring-offset-2 ring-offset-background"
+                    :class="[
+                      `bg-${color}`,
+                      selectedColor === color ? 'ring-2 ring-current scale-110' : 'hover:scale-105'
+                    ]"
+                    @click="selectedColor = color"
+                  />
+                </div>
               </div>
             </UFormField>
           </div>
@@ -249,6 +284,42 @@ const onResetApp = async () => {
           <div class="flex justify-end gap-2">
             <UButton label="Cancel" variant="ghost" @click="isAddingOwner = false" />
             <UButton label="Create Owner" :disabled="!newOwnerName" @click="onAddOwner" />
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Edit Owner Modal -->
+      <UModal v-model:open="isEditingOwner" title="Edit Owner">
+        <template #body>
+          <div class="space-y-4 py-2">
+            <UFormField label="Name" required>
+              <UInput v-model="editOwnerName" placeholder="Enter owner name" />
+            </UFormField>
+            
+            <UFormField label="Color">
+              <div class="flex items-center gap-4">
+                <OwnerBadge :name="editOwnerName || 'Preview'" :color="editSelectedColor" size="lg" />
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="color in colorOptions"
+                    :key="color"
+                    type="button"
+                    class="w-8 h-8 rounded-full transition-all ring-offset-2 ring-offset-background"
+                    :class="[
+                      `bg-${color}`,
+                      editSelectedColor === color ? 'ring-2 ring-current scale-110' : 'hover:scale-105'
+                    ]"
+                    @click="editSelectedColor = color"
+                  />
+                </div>
+              </div>
+            </UFormField>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancel" variant="ghost" @click="isEditingOwner = false" />
+            <UButton label="Save Changes" :disabled="!editOwnerName" @click="onUpdateOwner" />
           </div>
         </template>
       </UModal>

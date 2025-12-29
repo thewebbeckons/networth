@@ -7,7 +7,7 @@ const formatCurrency = (value: number) => {
 </script>
 
 <template>
-  <UCard class="md:w-1/2">
+  <UCard class="md:w-1/2" variant="soft">
     <div class="space-y-4">
       <div class="flex items-baseline gap-3">
         <div class="text-lg font-bold uppercase tracking-wider text-neutral-900 dark:text-white">Asset Breakdown</div>

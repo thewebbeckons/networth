@@ -17,7 +17,7 @@ const formatCurrency = (value: number) => {
 </script>
 
 <template>
-  <UCard class="md:w-1/2">
+  <UCard class="md:w-1/2" variant="soft">
     <div class="flex">
       <!-- Net Worth Section (Left) -->
       <div class="flex-1 space-y-2 pr-6 border-r border-neutral-200 dark:border-neutral-700">

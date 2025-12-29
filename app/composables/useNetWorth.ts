@@ -14,6 +14,7 @@ export const useNetWorth = () => {
         addAccount: dbAddAccount,
         updateAccount: dbUpdateAccount,
         updateBalance: dbUpdateBalance,
+        deleteAccount: dbDeleteAccount,
         getAccountBalances,
         getMonthlySnapshots
     } = useDatabase()
@@ -51,7 +52,7 @@ export const useNetWorth = () => {
             bank: acc.bank,
             category: acc.categoryName,
             owner: acc.ownerName,
-            ownerAvatar: acc.ownerAvatar,
+            ownerColor: acc.ownerColor,
             type: acc.type,
             latestBalance: acc.latestBalance
         }))
@@ -117,6 +118,20 @@ export const useNetWorth = () => {
 
         await dbUpdateAccount(numericId, data)
         await loadSnapshots() // Refresh snapshots after update
+    }
+
+    /**
+     * Delete an account
+     */
+    const deleteAccount = async (accountId: string): Promise<void> => {
+        const numericId = parseInt(accountId, 10)
+        if (isNaN(numericId)) {
+            console.error('[useNetWorth] Invalid account ID:', accountId)
+            return
+        }
+
+        await dbDeleteAccount(numericId)
+        await loadSnapshots() // Refresh snapshots after delete
     }
 
     /**
@@ -340,6 +355,41 @@ export const useNetWorth = () => {
     })
 
     /**
+     * Get accounts grouped by category for either assets or liabilities
+     * Returns an array of category groups with their accounts and totals
+     */
+    const getAccountsGroupedByCategory = (type: 'asset' | 'liability') => {
+        const filteredAccounts = dbAccounts.value.filter(acc => acc.type === type)
+
+        // Group by category
+        const groups: Record<string, { accounts: typeof filteredAccounts; total: number }> = {}
+
+        for (const acc of filteredAccounts) {
+            if (!groups[acc.categoryName]) {
+                groups[acc.categoryName] = { accounts: [], total: 0 }
+            }
+            groups[acc.categoryName]!.accounts.push(acc)
+            groups[acc.categoryName]!.total += Math.abs(acc.latestBalance)
+        }
+
+        // Convert to array and sort by total descending
+        return Object.entries(groups)
+            .map(([category, data]) => ({
+                category,
+                accounts: data.accounts.map(acc => ({
+                    id: String(acc.id),
+                    name: acc.name,
+                    owner: acc.ownerName,
+                    ownerColor: acc.ownerColor,
+                    bank: acc.bank,
+                    balance: acc.latestBalance
+                })),
+                total: data.total
+            }))
+            .sort((a, b) => b.total - a.total)
+    }
+
+    /**
      * Get total assets
      */
     const totalAssets = computed(() => {
@@ -372,11 +422,13 @@ export const useNetWorth = () => {
         totalAssets,
         totalLiabilities,
         getAssetCategoryBreakdown,
+        getAccountsGroupedByCategory,
 
         // Actions
         addAccount,
         updateAccount,
         updateBalance,
+        deleteAccount,
         getBalanceHistory,
         getGroupedBreakdown,
         getGrowthForPeriod,

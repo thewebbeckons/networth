@@ -22,19 +22,15 @@ const { updateAccount } = useNetWorth()
 const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Securities']
 
 const { owners } = useDatabase()
-const ownerOptions = computed(() => {
-  if (owners.value.length > 0) {
-    return owners.value.map(o => o.name)
-  }
-  return ['Me', 'Joint', 'Spouse']
-})
+const ownerOptions = computed(() => owners.value.map(o => o.name))
+const hasOwners = computed(() => owners.value.length > 0)
 
-const schema = z.object({
+const schema = computed(() => z.object({
   name: z.string().min(1, 'Name is required'),
   bank: z.string().min(1, 'Bank is required'),
   category: z.string().min(1, 'Category is required'),
-  owner: z.string().min(1, 'Owner is required')
-})
+  owner: hasOwners.value ? z.string().min(1, 'Owner is required') : z.string().optional()
+}))
 
 type Schema = z.output<typeof schema>
 
@@ -75,7 +71,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <USelect v-model="state.category" :items="categories" />
     </UFormField>
 
-    <UFormField label="Owner" name="owner">
+    <UFormField v-if="hasOwners" label="Owner" name="owner">
       <USelect v-model="state.owner" :items="ownerOptions" />
     </UFormField>
 

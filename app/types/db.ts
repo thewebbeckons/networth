@@ -20,7 +20,7 @@ export interface DbAccount {
 export interface DbOwner {
     id?: number
     name: string
-    avatar?: string // base64 or object URL
+    color?: string // Nuxt UI semantic color name (primary, secondary, error, info, success, warning, neutral)
 }
 
 // Balance table schema

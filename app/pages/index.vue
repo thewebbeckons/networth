@@ -62,22 +62,16 @@ const periodGrowth = computed(() => getGrowthForPeriod(startDate.value))
       <DashboardAssetCategoriesCard />
     </div>
 
-    <UCard variant="subtle">
+    <UCard variant="soft">
       <template #header>
         <div class="text-lg font-bold">Net Worth Trend</div>
       </template>
       <NetWorthChart :start-date="startDate" />
     </UCard>
-
-    <UCard>
-      <template #header>
-        <div class="flex justify-between items-center">
-          <div class="text-lg font-bold">Accounts</div>
-          <UButton label="Manage Accounts" variant="ghost" to="/accounts" />
-        </div>
-      </template>
-      <AccountList />
-    </UCard>
+    <div class="flex flex-col md:flex-row gap-6">
+      <DashboardAssetsListCard />
+      <DashboardLiabilitiesListCard />
+    </div>
   </UContainer>
 </template>
 

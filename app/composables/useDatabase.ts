@@ -21,7 +21,7 @@ import { isLiabilityCategory } from '~/types/db'
 export interface AccountWithDetails extends DbAccount {
     categoryName: string
     ownerName: string
-    ownerAvatar?: string
+    ownerColor?: string
     latestBalance: number
 }
 
@@ -51,9 +51,9 @@ async function loadAccounts(): Promise<void> {
         if (cat.id) categoryMap.set(cat.id, cat.name)
     }
 
-    const ownerMap = new Map<number, { name: string, avatar?: string }>()
+    const ownerMap = new Map<number, { name: string, color?: string }>()
     for (const owner of allOwners) {
-        if (owner.id) ownerMap.set(owner.id, { name: owner.name, avatar: owner.avatar })
+        if (owner.id) ownerMap.set(owner.id, { name: owner.name, color: owner.color })
     }
 
     // Load accounts with details
@@ -73,7 +73,7 @@ async function loadAccounts(): Promise<void> {
             ...account,
             categoryName: categoryMap.get(account.categoryId) || 'Unknown',
             ownerName: ownerInfo ? ownerInfo.name : (account.owner || 'Unknown'),
-            ownerAvatar: ownerInfo?.avatar,
+            ownerColor: ownerInfo?.color,
             latestBalance: latestBalance?.value || 0
         })
     }
@@ -309,12 +309,22 @@ async function findAccountById(id: number): Promise<AccountWithDetails | undefin
 /**
  * Add a new owner
  */
-async function addOwner(name: string, avatar?: string): Promise<number | undefined> {
+async function addOwner(name: string, color?: string): Promise<number | undefined> {
     if (import.meta.server) return
     const db = getDb()
-    const id = await db.owners.add({ name, avatar }) as number
+    const id = await db.owners.add({ name, color }) as number
     await loadAccounts()
     return id
+}
+
+/**
+ * Update an existing owner
+ */
+async function updateOwner(ownerId: number, name: string, color?: string): Promise<void> {
+    if (import.meta.server) return
+    const db = getDb()
+    await db.owners.update(ownerId, { name, color })
+    await loadAccounts()
 }
 
 /**
@@ -332,6 +342,25 @@ async function deleteOwner(ownerId: number): Promise<void> {
 
     await db.owners.delete(ownerId)
     await loadAccounts()
+}
+
+/**
+ * Delete an account and all its balances
+ */
+async function deleteAccount(accountId: number): Promise<void> {
+    if (import.meta.server) return
+    const db = getDb()
+
+    await db.transaction('rw', [db.accounts, db.balances], async () => {
+        // Delete all balances for this account
+        await db.balances.where('accountId').equals(accountId).delete()
+        // Delete the account
+        await db.accounts.delete(accountId)
+    })
+
+    // Reload accounts and regenerate snapshots
+    await loadAccounts()
+    await generateAllSnapshots(db)
 }
 
 /**
@@ -443,7 +472,9 @@ export function useDatabase() {
         findAccountByLegacyId,
         findAccountById,
         addOwner,
+        updateOwner,
         deleteOwner,
+        deleteAccount,
         exportDatabase,
         importDatabase,
         resetDatabase,
