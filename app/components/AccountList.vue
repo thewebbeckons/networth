@@ -51,7 +51,7 @@ const isUpdateModalOpen = ref(false)
 const selectedAccount = ref<any>(null)
 const newBalanceValue = ref(0)
 const today = new Date()
-const newBalanceDate = ref<DateValue>(new CalendarDate(today.getFullYear(), today.getMonth() + 1, today.getDate()))
+const newBalanceDate = ref<DateValue>(new CalendarDate(today.getFullYear(), today.getMonth() + 1, today.getDate())) as any
 const inputDateRef = useTemplateRef('inputDate')
 
 const openUpdateModal = (row: any) => {

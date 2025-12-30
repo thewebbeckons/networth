@@ -33,7 +33,7 @@ const todayDate = today(getLocalTimeZone())
 const state = reactive({
   accountId: props.preselectedAccountId || '',
   balance: 0,
-  date: todayDate as CalendarDate
+  date: todayDate as any
 })
 
 // Initialize balance if account is preselected

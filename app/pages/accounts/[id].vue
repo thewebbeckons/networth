@@ -48,10 +48,10 @@ const handleBalanceUpdated = async () => {
 
 <template>
   <UContainer class="py-6 space-y-6">
-    <div v-if="account">
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <UButton variant="link" icon="i-heroicons-arrow-left" to="/accounts" class="p-0 mb-2">Back to Accounts</UButton>
+    <div v-if="account" class="space-y-6">
+      <UButton variant="link" icon="i-heroicons-arrow-left" to="/accounts" class="p-0 mb-2">Back to Accounts</UButton>
+      <div class="flex justify-between items-center">
+        <div class="space-y-2">          
           <h1 class="text-3xl font-bold">{{ account.name }}</h1>
           <div class="flex gap-2 text-gray-500">
             <UBadge color="neutral">{{ account.category }}</UBadge>
