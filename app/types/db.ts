@@ -10,8 +10,8 @@ export interface DbAccount {
     name: string
     bank: string
     categoryId: number
-    owner: string // Keeping for backward compatibility/migration
-    ownerId?: number // New reference
+    owner: string
+    ownerId?: number
     type: 'asset' | 'liability'
     createdAt: string
 }
@@ -65,30 +65,7 @@ export interface DbCategorySnapshot {
     total: number
 }
 
-// Legacy types from LocalStorage (used for migration)
-export interface LegacyBalanceRecord {
-    date: string
-    value: number
-}
-
-export interface LegacyAccount {
-    id: string
-    name: string
-    bank: string
-    category: string
-    owner: string
-    balances: LegacyBalanceRecord[]
-}
-
-export interface LegacyTransaction {
-    id: string
-    accountId: string
-    date: string
-    amount: number
-    description: string
-}
-
-// Category to type mapping for migration
+// Liability category names for determining account type
 export const LIABILITY_CATEGORIES = ['Loan', 'Mortgage', 'Credit Card'] as const
 
 /**

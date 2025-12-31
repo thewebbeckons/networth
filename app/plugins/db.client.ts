@@ -1,8 +1,8 @@
 /**
  * Dexie IndexedDB Database Plugin (Client-Only)
  * 
- * This plugin initializes the IndexedDB database and handles migration
- * from LocalStorage on first run. It only runs on the client.
+ * This plugin initializes the IndexedDB database.
+ * It only runs on the client.
  */
 import Dexie, { type EntityTable } from 'dexie'
 import type {
@@ -12,11 +12,8 @@ import type {
     DbTransaction,
     DbMonthlySnapshot,
     DbCategorySnapshot,
-    DbOwner,
-    LegacyAccount,
-    LegacyTransaction
+    DbOwner
 } from '~/types/db'
-import { isLiabilityCategory } from '~/types/db'
 
 // Database class with typed tables
 class NetWorthDatabase extends Dexie {
@@ -71,167 +68,15 @@ class NetWorthDatabase extends Dexie {
 let db: NetWorthDatabase | null = null
 
 /**
- * Get the database instance (creates if needed)
+ * Return the NetWorthDatabase singleton, creating it on first access.
+ *
+ * @returns The NetWorthDatabase singleton instance.
  */
 export function getDb(): NetWorthDatabase {
     if (!db) {
         db = new NetWorthDatabase()
     }
     return db
-}
-
-/**
- * Check if migration from LocalStorage has been completed
- */
-function isMigrationComplete(): boolean {
-    return localStorage.getItem('networth-db-migrated') === 'true'
-}
-
-/**
- * Mark migration as complete
- */
-function markMigrationComplete(): void {
-    localStorage.setItem('networth-db-migrated', 'true')
-}
-
-/**
- * Get legacy accounts from LocalStorage
- */
-function getLegacyAccounts(): LegacyAccount[] {
-    const raw = localStorage.getItem('networth-accounts')
-    if (!raw) return []
-    try {
-        return JSON.parse(raw) as LegacyAccount[]
-    } catch {
-        console.error('[db.client] Failed to parse legacy accounts from LocalStorage')
-        return []
-    }
-}
-
-/**
- * Get legacy transactions from LocalStorage (if any)
- */
-function getLegacyTransactions(): LegacyTransaction[] {
-    const raw = localStorage.getItem('networth-transactions')
-    if (!raw) return []
-    try {
-        return JSON.parse(raw) as LegacyTransaction[]
-    } catch {
-        console.error('[db.client] Failed to parse legacy transactions from LocalStorage')
-        return []
-    }
-}
-
-/**
- * Migrate data from LocalStorage to IndexedDB
- */
-async function migrateFromLocalStorage(database: NetWorthDatabase): Promise<void> {
-    const legacyAccounts = getLegacyAccounts()
-    const legacyTransactions = getLegacyTransactions()
-
-    if (legacyAccounts.length === 0 && legacyTransactions.length === 0) {
-        console.log('[db.client] No legacy data found, skipping migration')
-        markMigrationComplete()
-        return
-    }
-
-    console.log(`[db.client] Migrating ${legacyAccounts.length} accounts and ${legacyTransactions.length} transactions`)
-
-    await database.transaction('rw', [
-        database.accounts,
-        database.balances,
-        database.categories,
-        database.transactions
-    ], async () => {
-        // Map to track legacy account ID -> new numeric ID
-        const accountIdMap = new Map<string, number>()
-
-        // Map to track category name -> category ID
-        const categoryIdMap = new Map<string, number>()
-
-        // Step 1: Extract and create unique categories
-        const uniqueCategories = [...new Set(legacyAccounts.map(a => a.category))]
-        for (const categoryName of uniqueCategories) {
-            // Check if category already exists
-            const existing = await database.categories.where('name').equals(categoryName).first()
-            if (existing && existing.id) {
-                categoryIdMap.set(categoryName, existing.id)
-            } else {
-                const id = await database.categories.add({ name: categoryName }) as number
-                categoryIdMap.set(categoryName, id)
-            }
-        }
-
-        // Step 2: Migrate accounts
-        for (const legacy of legacyAccounts) {
-            // Check if already migrated (by legacyId)
-            const existing = await database.accounts.where('legacyId').equals(legacy.id).first()
-            if (existing && existing.id) {
-                accountIdMap.set(legacy.id, existing.id)
-                continue
-            }
-
-            const categoryId = categoryIdMap.get(legacy.category)
-            if (!categoryId) {
-                console.error(`[db.client] Category not found for account: ${legacy.name}`)
-                continue
-            }
-
-            const accountType = isLiabilityCategory(legacy.category) ? 'liability' : 'asset'
-
-            const newAccountId = await database.accounts.add({
-                legacyId: legacy.id,
-                name: legacy.name,
-                bank: legacy.bank,
-                categoryId,
-                owner: legacy.owner,
-                type: accountType,
-                createdAt: new Date().toISOString()
-            }) as number
-
-            accountIdMap.set(legacy.id, newAccountId)
-
-            // Step 3: Migrate balances for this account
-            for (const balance of legacy.balances) {
-                // Check if balance already exists (by accountId + date)
-                const existingBalance = await database.balances
-                    .where('accountId').equals(newAccountId)
-                    .filter(b => b.date === balance.date)
-                    .first()
-
-                if (!existingBalance) {
-                    await database.balances.add({
-                        accountId: newAccountId,
-                        date: balance.date,
-                        value: balance.value
-                    })
-                }
-            }
-        }
-
-        // Step 4: Migrate transactions (if any)
-        for (const legacy of legacyTransactions) {
-            // Check if already migrated
-            const existing = await database.transactions.where('legacyId').equals(legacy.id).first()
-            if (existing) continue
-
-            const newAccountId = accountIdMap.get(legacy.accountId)
-            if (!newAccountId) {
-                console.warn(`[db.client] Account not found for transaction: ${legacy.id}`)
-                continue
-            }
-
-            await database.transactions.add({
-                legacyId: legacy.id,
-                accountId: newAccountId,
-                date: legacy.date,
-                amount: legacy.amount,
-                description: legacy.description
-            })
-        }
-    })
-
-    console.log('[db.client] Migration complete')
 }
 
 /**
@@ -413,18 +258,6 @@ export default defineNuxtPlugin(async () => {
     try {
         // Open the database
         await database.open()
-
-        // Check if migration is needed
-        if (!isMigrationComplete()) {
-            await migrateFromLocalStorage(database)
-            await generateAllSnapshots(database)
-            markMigrationComplete()
-
-            // Clear old LocalStorage data after successful migration
-            localStorage.removeItem('networth-accounts')
-            localStorage.removeItem('networth-transactions')
-        }
-
         console.log('[db.client] Database initialized successfully')
     } catch (error) {
         console.error('[db.client] Failed to initialize database:', error)

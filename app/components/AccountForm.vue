@@ -11,7 +11,7 @@ const emit = defineEmits(['close'])
 
 const { addAccount } = useNetWorth()
 
-const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Securities']
+const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Investment']
 
 const { owners } = useDatabase()
 const ownerOptions = computed(() => owners.value.map(o => o.name))
@@ -38,16 +38,17 @@ const state = reactive({
 // Set default owner when owners are loaded
 watch(owners, (newOwners) => {
   if (newOwners.length > 0 && !state.owner) {
-    state.owner = newOwners[0].name
+    state.owner = newOwners[0]?.name ?? ''
   }
 }, { immediate: true })
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  await addAccount(event.data)
+  await addAccount(event.data as { name: string; bank: string; category: string; owner: string; initialBalance: number })
   // Reset form or close modal
   state.name = ''
   state.bank = ''
   state.initialBalance = 0
+  state.owner = ''
   
   if (props.onSuccess) {
     props.onSuccess()

@@ -19,7 +19,7 @@ const emit = defineEmits(['close', 'saved'])
 
 const { updateAccount } = useNetWorth()
 
-const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Securities']
+const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Investment']
 
 const { owners } = useDatabase()
 const ownerOptions = computed(() => owners.value.map(o => o.name))
@@ -51,7 +51,7 @@ watch(() => props.account, (newAccount) => {
 }, { deep: true })
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  await updateAccount(props.account.id, event.data)
+  await updateAccount(props.account.id, event.data as { name: string; bank: string; category: string; owner: string })
   emit('saved')
   emit('close')
 }
