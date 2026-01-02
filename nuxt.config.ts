@@ -5,6 +5,15 @@ export default defineNuxtConfig({
   // Enable SSG mode (required for Tauri - it cannot run SSR)
   ssr: false,
 
+  // Icon configuration for production bundling
+  icon: {
+    serverBundle: 'local',
+    clientBundle: {
+      icons: [],
+      scan: true
+    }
+  },
+
   devtools: {
     enabled: true
   },
