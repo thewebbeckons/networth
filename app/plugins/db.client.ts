@@ -14,6 +14,7 @@ import type {
     DbCategorySnapshot,
     DbProfile
 } from '~/types/db'
+import { DEFAULT_CATEGORIES } from '~/types/db'
 
 // Database class with typed tables
 class NetWorthDatabase extends Dexie {
@@ -49,6 +50,37 @@ class NetWorthDatabase extends Dexie {
             categorySnapshots: '++id, [month+categoryId], categoryId',
             profile: '++id'
         })
+
+        // Version 5 schema - add type field to categories
+        this.version(5).stores({
+            accounts: '++id, legacyId, categoryId, type, bank, owner',
+            balances: '++id, accountId, date',
+            categories: '++id, name, type',
+            transactions: '++id, legacyId, accountId, date',
+            monthlySnapshots: 'month',
+            categorySnapshots: '++id, [month+categoryId], categoryId',
+            profile: '++id'
+        }).upgrade(async tx => {
+            // Migrate existing categories to have a type
+            const categories = await tx.table('categories').toArray()
+            for (const cat of categories) {
+                // Default existing categories to asset, except known liability names
+                const liabilityNames = ['loan', 'mortgage', 'credit']
+                const isLiability = liabilityNames.some(n => cat.name.toLowerCase().includes(n))
+                await tx.table('categories').update(cat.id, { type: isLiability ? 'liability' : 'asset' })
+            }
+        })
+    }
+}
+
+/**
+ * Seed default categories if none exist
+ */
+async function seedDefaultCategories(database: NetWorthDatabase): Promise<void> {
+    const existingCategories = await database.categories.count()
+    if (existingCategories === 0) {
+        console.log('[db.client] Seeding default categories')
+        await database.categories.bulkAdd(DEFAULT_CATEGORIES.map(c => ({ ...c })))
     }
 }
 
@@ -246,6 +278,8 @@ export default defineNuxtPlugin(async () => {
     try {
         // Open the database
         await database.open()
+        // Seed default categories if this is a fresh database
+        await seedDefaultCategories(database)
         console.log('[db.client] Database initialized successfully')
     } catch (error) {
         console.error('[db.client] Failed to initialize database:', error)

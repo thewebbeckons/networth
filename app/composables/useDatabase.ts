@@ -14,7 +14,6 @@ import type {
     DbProfile,
     OwnerType
 } from '~/types/db'
-import { isLiabilityCategory } from '~/types/db'
 
 /**
  * Extended account type with resolved category name and latest balance
@@ -147,18 +146,15 @@ async function addAccount(data: {
 
     // First, create the account and balance in a transaction
     const accountId = await db.transaction('rw', [db.accounts, db.balances, db.categories], async () => {
-        // Find or create category
-        let category = await db.categories.where('name').equals(data.category).first()
-        let categoryId: number
-
-        if (category && category.id) {
-            categoryId = category.id
-        } else {
-            categoryId = await db.categories.add({ name: data.category }) as number
+        // Find category by name
+        const category = await db.categories.where('name').equals(data.category).first()
+        if (!category || !category.id) {
+            throw new Error(`Category "${data.category}" not found`)
         }
+        const categoryId = category.id
 
-        // Determine account type
-        const accountType = isLiabilityCategory(data.category) ? 'liability' : 'asset'
+        // Use category's type for account type
+        const accountType = category.type
 
         // Create account
         const newAccountId = await db.accounts.add({
@@ -236,18 +232,15 @@ async function updateAccount(accountId: number, data: {
     const db = getDb()
 
     await db.transaction('rw', [db.accounts, db.categories], async () => {
-        // Find or create category
-        let category = await db.categories.where('name').equals(data.category).first()
-        let categoryId: number
-
-        if (category && category.id) {
-            categoryId = category.id
-        } else {
-            categoryId = await db.categories.add({ name: data.category }) as number
+        // Find category by name
+        const category = await db.categories.where('name').equals(data.category).first()
+        if (!category || !category.id) {
+            throw new Error(`Category "${data.category}" not found`)
         }
+        const categoryId = category.id
 
-        // Determine account type based on category
-        const accountType = isLiabilityCategory(data.category) ? 'liability' : 'asset'
+        // Use category's type for account type
+        const accountType = category.type
 
         // Update account
         await db.accounts.update(accountId, {
@@ -362,6 +355,66 @@ async function deleteAccount(accountId: number): Promise<void> {
 }
 
 /**
+ * Add a new category
+ */
+async function addCategory(name: string, type: 'asset' | 'liability'): Promise<number | undefined> {
+    if (import.meta.server) return
+    const db = getDb()
+
+    // Check if category with same name exists
+    const existing = await db.categories.where('name').equalsIgnoreCase(name).first()
+    if (existing) {
+        throw new Error(`Category "${name}" already exists`)
+    }
+
+    const id = await db.categories.add({ name, type }) as number
+    await loadAccounts() // Refresh categories
+    return id
+}
+
+/**
+ * Update an existing category
+ */
+async function updateCategory(id: number, name: string, type: 'asset' | 'liability'): Promise<void> {
+    if (import.meta.server) return
+    const db = getDb()
+
+    // Check if another category with same name exists
+    const existing = await db.categories.where('name').equalsIgnoreCase(name).first()
+    if (existing && existing.id !== id) {
+        throw new Error(`Category "${name}" already exists`)
+    }
+
+    await db.categories.update(id, { name, type })
+
+    // Update all accounts using this category to reflect the new type
+    const accountsWithCategory = await db.accounts.where('categoryId').equals(id).toArray()
+    for (const account of accountsWithCategory) {
+        await db.accounts.update(account.id!, { type })
+    }
+
+    await loadAccounts() // Refresh categories and accounts
+    await generateAllSnapshots(db)
+}
+
+/**
+ * Delete a category
+ */
+async function deleteCategory(id: number): Promise<void> {
+    if (import.meta.server) return
+    const db = getDb()
+
+    // Check if any accounts use this category
+    const accountsUsingCategory = await db.accounts.where('categoryId').equals(id).count()
+    if (accountsUsingCategory > 0) {
+        throw new Error(`Cannot delete category: ${accountsUsingCategory} account(s) are using it`)
+    }
+
+    await db.categories.delete(id)
+    await loadAccounts() // Refresh categories
+}
+
+/**
  * Export database to JSON
  */
 async function exportDatabase() {
@@ -472,6 +525,9 @@ export function useDatabase() {
         updateProfile,
         getProfile,
         deleteAccount,
+        addCategory,
+        updateCategory,
+        deleteCategory,
         exportDatabase,
         importDatabase,
         resetDatabase,

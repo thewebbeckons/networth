@@ -1,23 +1,6 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-
-const route = useRoute()
 const { isOnline } = useNetworkStatus()
-
-const navItems = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Dashboard',
-    icon: 'i-lucide-layout-dashboard',
-    to: '/',
-    active: route.path === '/'
-  },
-  {
-    label: 'Accounts',
-    icon: 'i-lucide-wallet',
-    to: '/accounts',
-    active: route.path.startsWith('/accounts')
-  }
-])
+const navItems = useNavItems()
 </script>
 
 <template>

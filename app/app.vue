@@ -24,10 +24,10 @@ useSeoMeta({
 
 <template>
   <UApp>
-    <AppHeader />
+    <NuxtLoadingIndicator />
 
-    <UMain>
+    <NuxtLayout>
       <NuxtPage />
-    </UMain>
+    </NuxtLayout>
   </UApp>
 </template>

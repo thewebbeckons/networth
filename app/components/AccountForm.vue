@@ -12,9 +12,10 @@ const emit = defineEmits(['close'])
 
 const { addAccount } = useNetWorth()
 
-const categories = ['TFSA', 'RRSP', 'Cash', 'Loan', 'Mortgage', 'Credit Card', 'Investment']
+const { profile, categories: dbCategories } = useDatabase()
 
-const { profile } = useDatabase()
+// Convert categories to select items (category names)
+const categoryOptions = computed(() => dbCategories.value.map(c => c.name))
 
 // Owner options based on profile configuration
 const ownerOptions = computed(() => {
@@ -43,10 +44,17 @@ type Schema = z.output<typeof schema>
 const state = reactive({
   name: '',
   bank: '',
-  category: categories[0],
+  category: '',
   owner: 'me' as OwnerType,
   initialBalance: 0
 })
+
+// Set default category when categories load
+watch(categoryOptions, (options) => {
+  if (options.length > 0 && !state.category) {
+    state.category = options[0] || ''
+  }
+}, { immediate: true })
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   await addAccount(event.data)
@@ -74,7 +82,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     </UFormField>
 
     <UFormField label="Category" name="category">
-      <USelect v-model="state.category" :items="categories" />
+      <USelect v-model="state.category" :items="categoryOptions" />
     </UFormField>
 
     <UFormField label="Owner" name="owner">

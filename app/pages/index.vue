@@ -17,7 +17,7 @@ const selectedPeriod = useLocalStorage('networth-selected-period', 'all', { init
 // Compute start date based on selected period
 const startDate = computed(() => {
   const now = new Date()
-  
+
   switch (selectedPeriod.value) {
     case '1m':
       return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
@@ -40,38 +40,38 @@ const periodGrowth = computed(() => getGrowthForPeriod(startDate.value))
 </script>
 
 <template>
-  <UContainer class="py-6 space-y-6">
-    <div class="flex justify-between items-center">
-      <h1 class="text-3xl font-bold">Dashboard</h1>
-      <USelect
-        v-model="selectedPeriod"
-        :items="periodOptions"
-        class="w-32"
-        size="md"
-      />
-    </div>
+  <UDashboardPanel id="dashboard">
+    <template #header>
+      <UDashboardNavbar title="Dashboard">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+        <template #right>
+          <USelect v-model="selectedPeriod" :items="periodOptions" class="w-32" size="md" />
+        </template>
+      </UDashboardNavbar>
+    </template>
 
-    <div class="flex flex-col md:flex-row gap-6">
-      <DashboardNetWorthCard
-        :current-net-worth="currentNetWorth"
-        :total-assets="totalAssets"
-        :total-liabilities="totalLiabilities"
-        :period-growth="periodGrowth"
-      />
+    <template #body>
+      <UContainer class="py-6 space-y-6">
+        <div class="flex flex-col md:flex-row gap-6">
+          <DashboardNetWorthCard :current-net-worth="currentNetWorth" :total-assets="totalAssets"
+            :total-liabilities="totalLiabilities" :period-growth="periodGrowth" />
 
-      <DashboardAssetCategoriesCard />
-    </div>
+          <DashboardAssetCategoriesCard />
+        </div>
 
-    <UCard variant="soft">
-      <template #header>
-        <div class="text-lg font-bold">Net Worth Trend</div>
-      </template>
-      <NetWorthChart :start-date="startDate" />
-    </UCard>
-    <div class="flex flex-col md:flex-row gap-6">
-      <DashboardAssetsListCard />
-      <DashboardLiabilitiesListCard />
-    </div>
-  </UContainer>
+        <UCard variant="soft">
+          <template #header>
+            <div class="text-lg font-bold">Net Worth Trend</div>
+          </template>
+          <NetWorthChart :start-date="startDate" />
+        </UCard>
+        <div class="flex flex-col md:flex-row gap-6">
+          <DashboardAssetsListCard />
+          <DashboardLiabilitiesListCard />
+        </div>
+      </UContainer>
+    </template>
+  </UDashboardPanel>
 </template>
-

@@ -39,6 +39,7 @@ export interface DbBalance {
 export interface DbCategory {
     id?: number
     name: string
+    type: 'asset' | 'liability'
 }
 
 // Transaction table schema
@@ -69,14 +70,17 @@ export interface DbCategorySnapshot {
     total: number
 }
 
-// Liability category names for determining account type
-export const LIABILITY_CATEGORIES = ['Loan', 'Mortgage', 'Credit Card'] as const
+// Default categories for new databases
+export const DEFAULT_CATEGORIES: Omit<DbCategory, 'id'>[] = [
+    { name: 'Investment', type: 'asset' },
+    { name: 'Credit', type: 'liability' },
+    { name: 'Cash', type: 'asset' }
+]
 
 /**
- * Determines if a category should be treated as a liability
+ * Determines if a category is a liability based on its type
  */
-export function isLiabilityCategory(categoryName: string): boolean {
-    return LIABILITY_CATEGORIES.some(
-        c => categoryName.toLowerCase().includes(c.toLowerCase())
-    )
+export function isLiabilityCategory(category: DbCategory): boolean {
+    return category.type === 'liability'
 }
+

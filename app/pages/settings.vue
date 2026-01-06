@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDatabase } from '~/composables/useDatabase'
+import type { DbCategory } from '~/types/db'
 
 definePageMeta({
   title: 'Settings'
@@ -7,10 +8,12 @@ definePageMeta({
 
 const { 
   profile, 
+  categories,
   updateProfile, 
   exportDatabase, 
   importDatabase, 
   resetDatabase,
+  deleteCategory,
   isReady 
 } = useDatabase()
 
@@ -105,21 +108,61 @@ const resetConfirmText = ref('')
 const onResetApp = async () => {
   await resetDatabase()
 }
+
+// Category Management
+const isCategoryModalOpen = ref(false)
+const editingCategory = ref<DbCategory | null>(null)
+
+function openCategoryModal(category?: DbCategory) {
+  editingCategory.value = category || null
+  isCategoryModalOpen.value = true
+}
+
+const categoryToDelete = ref<DbCategory | null>(null)
+const isDeleteCategoryModalOpen = ref(false)
+
+function confirmDeleteCategory(category: DbCategory) {
+  categoryToDelete.value = category
+  isDeleteCategoryModalOpen.value = true
+}
+
+async function onDeleteCategory() {
+  if (!categoryToDelete.value?.id) return
+  try {
+    await deleteCategory(categoryToDelete.value.id)
+    toast.add({ title: 'Category deleted', color: 'success' })
+    isDeleteCategoryModalOpen.value = false
+    categoryToDelete.value = null
+  } catch (error) {
+    toast.add({ title: 'Error', description: String(error), color: 'error' })
+  }
+}
 </script>
 
 <template>
-  <UContainer class="py-10 max-w-4xl">
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold">Settings</h1>
-      <p class="text-muted-foreground mt-2">Manage your profile and application settings.</p>
-    </div>
+  <UDashboardPanel id="settings">
+    <template #header>
+      <UDashboardNavbar title="Settings">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+      </UDashboardNavbar>
 
-    <div v-if="!isReady" class="flex items-center justify-center py-20">
-      <UIcon name="i-lucide-loader-2" class="animate-spin text-4xl" />
-    </div>
+      <UDashboardToolbar>
+        <template #left>
+          <p class="text-sm text-muted-foreground">Manage your profile and application settings.</p>
+        </template>
+      </UDashboardToolbar>
+    </template>
 
-    <ClientOnly v-else>
-      <div class="space-y-8">
+    <template #body>
+      <UContainer class="py-6 max-w-4xl">
+        <div v-if="!isReady" class="flex items-center justify-center py-20">
+          <UIcon name="i-lucide-loader-2" class="animate-spin text-4xl" />
+        </div>
+
+        <ClientOnly v-else>
+          <div class="space-y-8">
         <!-- Profile Section -->
         <UCard variant="soft">
           <template #header>
@@ -237,6 +280,67 @@ const onResetApp = async () => {
           </div>
         </UCard>
 
+        <!-- Account Categories Section -->
+        <UCard variant="soft">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-xl font-semibold">Account Categories</h2>
+                <p class="text-sm text-muted-foreground">Organize your accounts by category (e.g., Investment, Savings, Credit).</p>
+              </div>
+              <UButton
+                icon="i-lucide-plus"
+                label="Add Category"
+                @click="openCategoryModal()"
+              />
+            </div>
+          </template>
+
+          <div v-if="categories.length === 0" class="py-8 text-center">
+            <UIcon name="i-lucide-folder-open" class="text-4xl text-muted-foreground mb-2" />
+            <p class="text-sm text-muted-foreground">No categories yet. Add one to get started.</p>
+          </div>
+
+          <div v-else class="divide-y divide-border">
+            <div
+              v-for="cat in categories"
+              :key="cat.id"
+              class="flex items-center justify-between py-3"
+            >
+              <div class="flex items-center gap-3">
+                <UIcon 
+                  :name="cat.type === 'asset' ? 'i-lucide-trending-up' : 'i-lucide-trending-down'" 
+                  :class="cat.type === 'asset' ? 'text-success' : 'text-error'"
+                />
+                <span class="font-medium">{{ cat.name }}</span>
+                <UBadge 
+                  :color="cat.type === 'asset' ? 'success' : 'error'" 
+                  variant="subtle"
+                  size="sm"
+                >
+                  {{ cat.type === 'asset' ? 'Asset' : 'Liability' }}
+                </UBadge>
+              </div>
+              <div class="flex items-center gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  @click="openCategoryModal(cat)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  color="error"
+                  variant="ghost"
+                  @click="confirmDeleteCategory(cat)"
+                />
+              </div>
+            </div>
+          </div>
+        </UCard>
+
         <!-- Data Management Section -->
         <UCard variant="soft">
           <template #header>
@@ -291,36 +395,63 @@ const onResetApp = async () => {
             </div>
           </template>
         </UPageCard>
-      </div>
+          </div>
 
-      <!-- Reset Confirmation Modal -->
-      <UModal v-model:open="isResetModalOpen" title="Reset Application?">
-        <template #body>
-          <UAlert
-            icon="i-lucide-alert-triangle"
-            color="error"
-            variant="subtle"
-            title="Warning: Irreversible Action"
-            description="All your financial data, accounts, and history will be permanently deleted from this browser. Please ensure you have an export if you wish to keep this data."
-            class="mb-4"
+          <!-- Reset Confirmation Modal -->
+          <UModal v-model:open="isResetModalOpen" title="Reset Application?">
+            <template #body>
+              <UAlert
+                icon="i-lucide-alert-triangle"
+                color="error"
+                variant="subtle"
+                title="Warning: Irreversible Action"
+                description="All your financial data, accounts, and history will be permanently deleted from this browser. Please ensure you have an export if you wish to keep this data."
+                class="mb-4"
+              />
+              <p>Type <strong>RESET</strong> below to confirm.</p>
+              <div class="mt-4">
+                <UInput v-model="resetConfirmText" placeholder="RESET" />
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton label="Cancel" color="neutral" variant="ghost" @click="isResetModalOpen = false" />
+                <UButton
+                  label="Delete Everything"
+                  color="error"
+                  :disabled="resetConfirmText !== 'RESET'"
+                  @click="onResetApp"
+                />
+              </div>
+            </template>
+          </UModal>
+
+          <!-- Category Form Modal -->
+          <CategoryFormModal
+            v-model:open="isCategoryModalOpen"
+            :category="editingCategory"
+            @saved="isCategoryModalOpen = false"
           />
-          <p>Type <strong>RESET</strong> below to confirm.</p>
-          <div class="mt-4">
-            <UInput v-model="resetConfirmText" placeholder="RESET" />
-          </div>
-        </template>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton label="Cancel" color="neutral" variant="ghost" @click="isResetModalOpen = false" />
-            <UButton
-              label="Delete Everything"
-              color="error"
-              :disabled="resetConfirmText !== 'RESET'"
-              @click="onResetApp"
-            />
-          </div>
-        </template>
-      </UModal>
-    </ClientOnly>
-  </UContainer>
+
+          <!-- Delete Category Confirmation Modal -->
+          <UModal v-model:open="isDeleteCategoryModalOpen" title="Delete Category?">
+            <template #body>
+              <p>Are you sure you want to delete the category <strong>{{ categoryToDelete?.name }}</strong>?</p>
+              <p class="text-sm text-muted-foreground mt-2">This action cannot be undone. You can only delete categories that are not in use by any accounts.</p>
+            </template>
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton label="Cancel" color="neutral" variant="ghost" @click="isDeleteCategoryModalOpen = false" />
+                <UButton
+                  label="Delete Category"
+                  color="error"
+                  @click="onDeleteCategory"
+                />
+              </div>
+            </template>
+          </UModal>
+        </ClientOnly>
+      </UContainer>
+    </template>
+  </UDashboardPanel>
 </template>
