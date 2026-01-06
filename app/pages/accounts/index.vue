@@ -114,8 +114,6 @@ const bankOptions = computed(() => {
             :bank-filter="bankFilter"
           />
         </UCard>
-
-        <ExportSection />
       </div>
 
       <UModal v-model:open="isAddAccountOpen" title="Add Account">
