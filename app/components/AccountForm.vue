@@ -82,7 +82,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     </UFormField>
 
     <UFormField label="Category" name="category">
-      <USelect v-model="state.category" :items="categoryOptions" />
+      <USelect v-model="state.category" :items="categoryOptions" class="w-42" />
     </UFormField>
 
     <UFormField label="Owner" name="owner">
@@ -91,6 +91,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         :items="ownerOptions"
         value-key="value"
         label-key="label"
+        class="w-32"
       />
     </UFormField>
 
