@@ -150,12 +150,14 @@ export const useNetWorth = () => {
 
     /**
      * Current net worth (latest value from accounts)
-     * Assets are added, liabilities are subtracted (using absolute value)
+     * Assets are added, liabilities are subtracted
+     * Negative liability (overpaid) adds to net worth, positive liability subtracts
      */
     const currentNetWorth = computed(() => {
         return dbAccounts.value.reduce((sum, acc) => {
             if (acc.type === 'liability') {
-                return sum - Math.abs(acc.latestBalance)
+                // Positive liability = debt (subtract), negative = credit (add)
+                return sum - acc.latestBalance
             }
             return sum + acc.latestBalance
         }, 0)
@@ -373,7 +375,8 @@ export const useNetWorth = () => {
                 groups[acc.categoryName] = { accounts: [], total: 0 }
             }
             groups[acc.categoryName]!.accounts.push(acc)
-            groups[acc.categoryName]!.total += Math.abs(acc.latestBalance)
+            // Keep the sign: positive = debt, negative = credit (overpaid)
+            groups[acc.categoryName]!.total += acc.latestBalance
         }
 
         // Convert to array and sort by total descending
@@ -404,11 +407,12 @@ export const useNetWorth = () => {
 
     /**
      * Get total liabilities
+     * Positive = debt, negative = credit (overpaid)
      */
     const totalLiabilities = computed(() => {
         return dbAccounts.value
             .filter(acc => acc.type === 'liability')
-            .reduce((sum, acc) => sum + Math.abs(acc.latestBalance), 0)
+            .reduce((sum, acc) => sum + acc.latestBalance, 0)
     })
 
     return {

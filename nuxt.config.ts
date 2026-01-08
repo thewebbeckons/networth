@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/hints', '@vueuse/nuxt', 'nuxt-charts', '@vite-pwa/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/hints', '@vueuse/nuxt', '@vite-pwa/nuxt'],
 
   ssr: false,
 

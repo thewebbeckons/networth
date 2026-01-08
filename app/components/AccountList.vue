@@ -162,7 +162,7 @@ const confirmDelete = async () => {
       </template>
 
       <template #balance-cell="{ row }">
-        <span :class="row.original.type === 'liability' || row.original.balance < 0 ? 'text-error' : 'text-primary'">
+        <span :class="(row.original.type === 'liability' && row.original.balance > 0) || (row.original.type !== 'liability' && row.original.balance < 0) ? 'text-error' : 'text-primary'">
           {{ formatCurrency(row.original.balance) }}
         </span>
       </template>

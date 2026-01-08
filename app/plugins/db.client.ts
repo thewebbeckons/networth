@@ -173,7 +173,8 @@ async function calculateSnapshotForMonth(
         if (account.type === 'asset') {
             assetsTotal += value
         } else {
-            liabilitiesTotal += Math.abs(value) // Store liability as positive for calculation
+            // Keep the sign: positive = debt, negative = credit (overpaid)
+            liabilitiesTotal += value
         }
 
         // Update category totals

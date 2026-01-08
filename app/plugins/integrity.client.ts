@@ -66,7 +66,8 @@ async function calculateExpectedSnapshot(month: string): Promise<{
         if (account.type === 'asset') {
             assetsTotal += value
         } else {
-            liabilitiesTotal += Math.abs(value)
+            // Keep the sign: positive = debt, negative = credit (overpaid)
+            liabilitiesTotal += value
         }
 
         const categoryKey = account.categoryId
