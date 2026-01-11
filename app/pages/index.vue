@@ -29,8 +29,8 @@ const periodGrowth = computed(() => getGrowthForPeriod(null))
         </div>
 
         <div class="flex flex-col md:flex-row gap-6">
-          <DashboardAssetsListCard />
-          <DashboardLiabilitiesListCard />
+          <DashboardAccountListCard type="asset" title="Assets" />
+          <DashboardAccountListCard type="liability" title="Liabilities" />
         </div>
       </div>
     </template>

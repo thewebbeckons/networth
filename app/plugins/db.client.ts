@@ -199,6 +199,42 @@ async function calculateSnapshotForMonth(
 }
 
 /**
+ * Save snapshot data for a specific month (shared helper)
+ */
+async function saveSnapshotData(
+    database: NetWorthDatabase,
+    month: string,
+    data: {
+        assetsTotal: number
+        liabilitiesTotal: number
+        netWorth: number
+        categoryTotals: Map<number, { type: 'asset' | 'liability'; total: number }>
+    }
+): Promise<void> {
+    // Upsert monthly snapshot
+    await database.monthlySnapshots.put({
+        month,
+        assetsTotal: data.assetsTotal,
+        liabilitiesTotal: data.liabilitiesTotal,
+        netWorth: data.netWorth,
+        createdAt: new Date().toISOString()
+    })
+
+    // Delete existing category snapshots for this month
+    await database.categorySnapshots.where('month').equals(month).delete()
+
+    // Insert category snapshots
+    for (const [categoryId, { type, total }] of data.categoryTotals) {
+        await database.categorySnapshots.add({
+            month,
+            categoryId,
+            type,
+            total
+        })
+    }
+}
+
+/**
  * Generate all monthly snapshots from historical data
  */
 export async function generateAllSnapshots(database: NetWorthDatabase): Promise<void> {
@@ -219,28 +255,7 @@ export async function generateAllSnapshots(database: NetWorthDatabase): Promise<
     ], async () => {
         for (const month of months) {
             const data = await calculateSnapshotForMonth(database, month)
-
-            // Upsert monthly snapshot
-            await database.monthlySnapshots.put({
-                month,
-                assetsTotal: data.assetsTotal,
-                liabilitiesTotal: data.liabilitiesTotal,
-                netWorth: data.netWorth,
-                createdAt: new Date().toISOString()
-            })
-
-            // Delete existing category snapshots for this month
-            await database.categorySnapshots.where('month').equals(month).delete()
-
-            // Insert category snapshots
-            for (const [categoryId, { type, total }] of data.categoryTotals) {
-                await database.categorySnapshots.add({
-                    month,
-                    categoryId,
-                    type,
-                    total
-                })
-            }
+            await saveSnapshotData(database, month, data)
         }
     })
 
@@ -260,24 +275,7 @@ export async function regenerateSnapshotForMonth(
         database.monthlySnapshots,
         database.categorySnapshots
     ], async () => {
-        await database.monthlySnapshots.put({
-            month,
-            assetsTotal: data.assetsTotal,
-            liabilitiesTotal: data.liabilitiesTotal,
-            netWorth: data.netWorth,
-            createdAt: new Date().toISOString()
-        })
-
-        await database.categorySnapshots.where('month').equals(month).delete()
-
-        for (const [categoryId, { type, total }] of data.categoryTotals) {
-            await database.categorySnapshots.add({
-                month,
-                categoryId,
-                type,
-                total
-            })
-        }
+        await saveSnapshotData(database, month, data)
     })
 }
 

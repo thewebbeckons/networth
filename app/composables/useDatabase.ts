@@ -51,7 +51,8 @@ function getOwnerColorValue(owner: OwnerType, profileData: DbProfile | null): st
     }
 }
 
-// Reactive state
+// Module-level reactive state: intentional singleton pattern for shared state across components.
+// This ensures all components using useDatabase() share the same reactive data.
 const isReady = ref(false)
 const accounts = ref<AccountWithDetails[]>([])
 const categories = ref<DbCategory[]>([])

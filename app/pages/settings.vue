@@ -18,11 +18,6 @@ const links = [[
     to: '/settings/data'
   },
   {
-    label: 'Danger',
-    icon: 'i-lucide-alert-triangle',
-    to: '/settings/danger'
-  },
-  {
     label: 'About',
     icon: 'i-lucide-info',
     to: '/settings/about'

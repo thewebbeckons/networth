@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatCurrency } from '~/utils/format'
+
 const route = useRoute()
 const { accounts, getBalanceHistory } = useNetWorth()
 
@@ -8,17 +10,30 @@ const account = computed(() => accounts.value.find(a => a.id === accountId))
 // Load balance history asynchronously
 const balanceHistory = ref<{ date: string; value: number }[]>([])
 const isLoading = ref(true)
+const loadError = ref<string | null>(null)
 
 onMounted(async () => {
   if (accountId) {
-    balanceHistory.value = await getBalanceHistory(accountId)
-    isLoading.value = false
+    try {
+      balanceHistory.value = await getBalanceHistory(accountId)
+    } catch (error) {
+      console.error('[AccountDetail] Failed to load balance history:', error)
+      loadError.value = 'Failed to load balance history'
+    } finally {
+      isLoading.value = false
+    }
   }
 })
 
 // Reload history after balance update
 const reloadHistory = async () => {
-  balanceHistory.value = await getBalanceHistory(accountId)
+  try {
+    balanceHistory.value = await getBalanceHistory(accountId)
+    loadError.value = null
+  } catch (error) {
+    console.error('[AccountDetail] Failed to reload balance history:', error)
+    loadError.value = 'Failed to reload balance history'
+  }
 }
 
 const historyColumns = [
@@ -29,7 +44,7 @@ const historyColumns = [
 const historyRows = computed(() => {
   return [...balanceHistory.value].reverse().map(b => ({
     date: b.date,
-    value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(b.value)
+    value: formatCurrency(b.value)
   }))
 })
 
@@ -87,9 +102,12 @@ const handleBalanceUpdated = async () => {
         <div v-if="isLoading" class="flex justify-center py-8">
           <UIcon name="i-lucide-loader-2" class="animate-spin text-2xl text-gray-500" />
         </div>
-        <BalanceHistoryChart 
-          v-else 
-          :balance-history="balanceHistory" 
+        <div v-else-if="loadError" class="text-center py-8 text-error">
+          {{ loadError }}
+        </div>
+        <BalanceHistoryChart
+          v-else
+          :balance-history="balanceHistory"
           :account-type="account?.type"
         />
       </UCard>
@@ -101,6 +119,9 @@ const handleBalanceUpdated = async () => {
         </template>
         <div v-if="isLoading" class="flex justify-center py-8">
           <UIcon name="i-lucide-loader-2" class="animate-spin text-2xl text-gray-500" />
+        </div>
+        <div v-else-if="loadError" class="text-center py-8 text-error">
+          {{ loadError }}
         </div>
         <div v-else-if="historyRows.length === 0" class="text-center py-8 text-gray-500">
           No balance history yet

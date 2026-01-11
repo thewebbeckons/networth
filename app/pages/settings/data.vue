@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { useDatabase } from '~/composables/useDatabase'
 
-const { 
-  exportDatabase, 
-  importDatabase, 
-  isReady 
+const {
+  exportDatabase,
+  importDatabase,
+  resetDatabase,
+  isReady
 } = useDatabase()
 
 const toast = useToast()
 
 // JSON Export
 const onExport = async () => {
+  if (!import.meta.client) return
+
   try {
     const data = await exportDatabase()
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -28,14 +31,16 @@ const onExport = async () => {
 
 // JSON Import
 const onImportClick = () => {
+  if (!import.meta.client) return
+
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.json'
-  
+
   input.onchange = async (event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
     if (!file) return
-    
+
     if (!confirm('This will REPLACE ALL existing data. Are you sure you want to proceed?')) {
       return
     }
@@ -49,8 +54,16 @@ const onImportClick = () => {
       toast.add({ title: 'Import failed', color: 'error', description: String(error) })
     }
   }
-  
+
   input.click()
+}
+
+// Danger Zone
+const isResetModalOpen = ref(false)
+const resetConfirmText = ref('')
+
+const onResetApp = async () => {
+  await resetDatabase()
 }
 </script>
 
@@ -96,6 +109,57 @@ const onImportClick = () => {
 
       <!-- CSV Export Section -->
       <ExportSection />
+
+      <!-- Danger Zone Section -->
+      <UPageCard variant="soft" highlight highlightColor="error" :ui="{ root: 'bg-error/5 dark:bg-error/5' }">
+        <template #header>
+          <h2 class="text-xl font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
+          <p class="text-sm text-muted-foreground">Irreversible actions that affect your data.</p>
+        </template>
+
+        <template #body>
+          <div>
+            <h3 class="font-medium mb-1">Reset Application</h3>
+            <p class="text-sm text-muted-foreground mb-4">
+              Permanently delete all accounts, history, and settings from this browser. This cannot be undone.
+            </p>
+            <UButton
+              color="error"
+              label="Reset All Data"
+              @click="isResetModalOpen = true"
+            />
+          </div>
+        </template>
+      </UPageCard>
     </div>
+
+    <!-- Reset Confirmation Modal -->
+    <UModal v-model:open="isResetModalOpen" title="Reset Application?">
+      <template #body>
+        <UAlert
+          icon="i-lucide-alert-triangle"
+          color="error"
+          variant="subtle"
+          title="Warning: Irreversible Action"
+          description="All your financial data, accounts, and history will be permanently deleted from this browser. Please ensure you have an export if you wish to keep this data."
+          class="mb-4"
+        />
+        <p>Type <strong>RESET</strong> below to confirm.</p>
+        <div class="mt-4">
+          <UInput v-model="resetConfirmText" placeholder="RESET" />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="isResetModalOpen = false" />
+          <UButton
+            label="Delete Everything"
+            color="error"
+            :disabled="resetConfirmText !== 'RESET'"
+            @click="onResetApp"
+          />
+        </div>
+      </template>
+    </UModal>
   </ClientOnly>
 </template>

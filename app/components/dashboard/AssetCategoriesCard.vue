@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import { VisSingleContainer, VisDonut, VisTooltip } from '@unovis/vue'
 import { Donut } from '@unovis/ts'
+import { formatCurrency, formatCompactCurrency } from '~/utils/format'
 
 const { getAssetCategoryBreakdown, totalAssets } = useNetWorth()
-
-const formatCompactCurrency = (value: number) => {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`
-  } else if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`
-  }
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-}
 
 // Process categories: top 4 + "Others" grouping
 const processedCategories = computed(() => {
@@ -34,11 +26,6 @@ const processedCategories = computed(() => {
     }
   ]
 })
-
-// Format full currency for tooltip
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-}
 
 // Tooltip trigger with styled HTML content
 const triggers = {
@@ -189,74 +176,5 @@ const topCategory = computed(() => {
 </template>
 
 <style scoped>
-:deep(.unovis-single-container) {
-  --vis-donut-background-color: transparent;
-  /* Reset default tooltip container */
-  --vis-tooltip-background-color: transparent;
-  --vis-tooltip-border-color: transparent;
-  --vis-tooltip-shadow-color: transparent;
-  --vis-tooltip-padding: 0;
-}
-
-/* Chart tooltip styling */
-:deep(.chart-tooltip) {
-  background: white;
-  border-radius: 8px;
-  padding: 12px 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  font-size: 13px;
-  min-width: 140px;
-}
-
-:deep(.chart-tooltip-header) {
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-:deep(.chart-tooltip-row) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-:deep(.chart-tooltip-row:last-child) {
-  margin-bottom: 0;
-}
-
-:deep(.chart-tooltip-dot) {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-:deep(.chart-tooltip-label) {
-  color: #6b7280;
-  flex: 1;
-}
-
-:deep(.chart-tooltip-value) {
-  font-weight: 600;
-  color: #1f2937;
-}
-
-/* Dark mode tooltip */
-.dark :deep(.chart-tooltip) {
-  background: #1f2937;
-}
-
-.dark :deep(.chart-tooltip-header) {
-  color: white;
-}
-
-.dark :deep(.chart-tooltip-label) {
-  color: #9ca3af;
-}
-
-.dark :deep(.chart-tooltip-value) {
-  color: white;
-}
+@import '~/assets/css/chart-tooltip.css';
 </style>

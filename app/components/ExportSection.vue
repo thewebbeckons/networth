@@ -89,9 +89,11 @@ const resetExclusions = () => {
 
 // Export to CSV
 const exportToCsv = () => {
+  if (!import.meta.client) return
+
   const today = new Date().toISOString().slice(0, 10)
   const header = 'date,name,bank,category,owner,balance'
-  
+
   const rows = filteredAccounts.value.map(account => {
     const escapeCsvField = (field: string) => {
       if (field.includes(',') || field.includes('"') || field.includes('\n')) {
@@ -99,7 +101,7 @@ const exportToCsv = () => {
       }
       return field
     }
-    
+
     return [
       today,
       escapeCsvField(account.name),
@@ -109,9 +111,9 @@ const exportToCsv = () => {
       account.latestBalance.toString()
     ].join(',')
   })
-  
+
   const csvContent = [header, ...rows].join('\n')
-  
+
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -121,7 +123,7 @@ const exportToCsv = () => {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
-  
+
   toast.add({ title: `Exported ${exportCount.value} accounts`, color: 'success' })
 }
 </script>

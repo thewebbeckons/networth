@@ -1,27 +1,52 @@
 <script setup lang="ts">
+import { formatCurrency } from '~/utils/format'
+
+const props = defineProps<{
+  type: 'asset' | 'liability'
+  title: string
+}>()
+
 const { getAccountsGroupedByCategory } = useNetWorth()
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(value)
-}
-
-// Get grouped liabilities
-const liabilityGroups = computed(() =>
-  getAccountsGroupedByCategory('liability')
-)
+// Get grouped accounts by type
+const accountGroups = computed(() => getAccountsGroupedByCategory(props.type))
 
 // Transform to accordion items format
 const accordionItems = computed(() =>
-  liabilityGroups.value.map(group => ({
+  accountGroups.value.map(group => ({
     label: group.category,
     value: group.category,
-    content: '', // We'll use custom slot
+    content: '',
     total: group.total,
     accounts: group.accounts
   }))
+)
+
+// Color logic differs for assets vs liabilities
+// Assets: positive = primary (good), negative = error (bad)
+// Liabilities: negative = primary (paid off/credit), positive = error (debt)
+const getValueColor = (value: number) => {
+  if (props.type === 'asset') {
+    return value >= 0 ? 'text-primary' : 'text-error'
+  }
+  return value < 0 ? 'text-primary' : 'text-error'
+}
+
+// For liabilities, we show absolute value and indicate if paid off
+const formatDisplayValue = (value: number) => {
+  if (props.type === 'liability' && value < 0) {
+    return formatCurrency(Math.abs(value))
+  }
+  return formatCurrency(value)
+}
+
+// Check if liability is paid off (negative balance = credit/overpaid)
+const isPaidOff = (value: number) => {
+  return props.type === 'liability' && value < 0
+}
+
+const emptyMessage = computed(() =>
+  props.type === 'asset' ? 'No asset accounts found' : 'No liability accounts found'
 )
 </script>
 
@@ -36,7 +61,7 @@ const accordionItems = computed(() =>
     >
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-xl uppercase font-bold">
-          Liabilities
+          {{ title }}
         </h2>
         <NuxtLink
           to="/accounts"
@@ -51,30 +76,26 @@ const accordionItems = computed(() =>
         <!-- Single item: show directly without accordion -->
         <div
           v-if="item.accounts.length === 1"
-          class="flex justify-between items-center py-3 px-4 bg-muted rounded-lg"
+          class="flex justify-between items-center py-3 px-4 bg-muted shadow-xs rounded-lg"
         >
           <div class="flex items-center gap-3">
             <OwnerBadge
               v-if="item.accounts[0]?.owner"
-              :name="item.accounts[0]?.owner"
+              :name="item.accounts[0]?.owner ?? ''"
               :color="item.accounts[0]?.ownerColor"
             />
             <div class="flex flex-col">
               <span class="font-medium">{{ item.label }}</span>
-              <span class="text-xs text-neutral-500 dark:text-neutral-400">{{
-                item.accounts[0]?.bank
-              }}</span>
+              <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ item.accounts[0]?.bank }}</span>
             </div>
           </div>
           <span
-            :class="item.total < 0 ? 'text-primary' : 'text-error'"
+            :class="getValueColor(item.total)"
             class="font-semibold inline-flex items-center gap-1"
           >
-            {{
-              formatCurrency(item.total < 0 ? Math.abs(item.total) : item.total)
-            }}
+            {{ formatDisplayValue(item.total) }}
             <UIcon
-              v-if="item.total < 0"
+              v-if="isPaidOff(item.total)"
               name="lucide-circle-check"
               class="size-4"
             />
@@ -104,19 +125,13 @@ const accordionItems = computed(() =>
           <template #trailing="{ item: accordionItem }">
             <div class="flex items-center gap-2 ms-auto">
               <span
-                :class="accordionItem.total < 0 ? 'text-primary' : 'text-error'"
+                :class="getValueColor(accordionItem.total)"
                 class="font-semibold inline-flex items-center gap-1"
               >
-                {{
-                  formatCurrency(
-                    accordionItem.total < 0
-                      ? Math.abs(accordionItem.total)
-                      : accordionItem.total
-                  )
-                }}
+                {{ formatDisplayValue(accordionItem.total) }}
                 <UIcon
-                  v-if="accordionItem.total < 0"
-                  name="lucide-arrow-check"
+                  v-if="isPaidOff(accordionItem.total)"
+                  name="lucide-circle-check"
                   class="size-4"
                 />
               </span>
@@ -143,24 +158,16 @@ const accordionItems = computed(() =>
                   />
                   <div class="flex flex-col">
                     <span class="font-medium text-sm">{{ account.name }}</span>
-                    <span
-                      class="text-xs text-neutral-500 dark:text-neutral-400"
-                    >{{ account.bank }}</span>
+                    <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ account.bank }}</span>
                   </div>
                 </div>
                 <span
-                  :class="account.balance < 0 ? 'text-primary' : 'text-error'"
+                  :class="getValueColor(account.balance)"
                   class="font-medium inline-flex items-center gap-1"
                 >
-                  {{
-                    formatCurrency(
-                      account.balance < 0
-                        ? Math.abs(account.balance)
-                        : account.balance
-                    )
-                  }}
+                  {{ formatDisplayValue(account.balance) }}
                   <UIcon
-                    v-if="account.balance < 0"
+                    v-if="isPaidOff(account.balance)"
                     name="lucide-circle-check"
                     class="size-4"
                   />
@@ -176,7 +183,7 @@ const accordionItems = computed(() =>
       v-else
       class="text-neutral-500 dark:text-neutral-400 text-center py-8"
     >
-      No liability accounts found
+      {{ emptyMessage }}
     </div>
   </UCard>
 </template>
